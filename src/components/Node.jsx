@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-function Node({ setNodes, setLines, lines, id }) {
+function Node({ setNodes, id }) {
   const [input, setInput] = useState("");
   const [copy, setCopy] = useState(false);
   const [editStatus, setEditStatus] = useState(true);
@@ -31,7 +31,7 @@ function Node({ setNodes, setLines, lines, id }) {
     };
 
     setNodes((prevNodes) => {
-      const newNodes = produce(prevNodes, (nodes) => {
+      return produce(prevNodes, (nodes) => {
         nodes.forEach((node, index) => {
           if (index === id) {
             node.id = id;
@@ -42,16 +42,6 @@ function Node({ setNodes, setLines, lines, id }) {
           }
         });
       });
-      newNodes.forEach((node, index) => {
-        if (index < 1) return;
-        setLines(prev => {
-          const newLines = prev.map(line => line)
-          newLines[index - 1].from = newNodes[index - 1];
-          newLines[index - 1].to = newNodes[index];
-          return newLines
-        })
-      });
-      return newNodes;
     });
   }, []);
   return (
@@ -77,14 +67,14 @@ function Node({ setNodes, setLines, lines, id }) {
       {editStatus ? (
         <textarea
           autoFocus
-          className={`w-full h-[300px] text-lg p-5 focus:outline-none  ${collapse} `}
+          className={`w-[200px] h-[300px] text-lg p-5 focus:outline-none  ${collapse} `}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           style={{ resize: "none" }}
         ></textarea>
       ) : (
         <Markdown
-          className={`h-[300px] text-lg overflow-auto p-4 w-full  ${collapse}`}
+          className={`w-[200px] h-[300px] text-lg overflow-auto p-5  ${collapse}`}
           children={input}
           components={{
             code(props) {
@@ -93,7 +83,7 @@ function Node({ setNodes, setLines, lines, id }) {
               const match = /language-(\w+)/.exec(className || "");
               return match ? (
                 <div className="h-[500px]">
-                  <div className="flex justify-between px-4 text-white text-xs items-center bg-[#2d2d2d] rounded-t-md overflow-hidden">
+                  <div className="flex justify-between px-5 text-white text-xs items-center bg-[#2d2d2d] rounded-t-md overflow-hidden">
                     <p className="text-sm">Example code</p>
                     {copy ? (
                       <button className="text-base text-white">Copied!</button>
