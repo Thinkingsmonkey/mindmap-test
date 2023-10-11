@@ -3,47 +3,72 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-function Node({ setNodes, id }) {
+import * as nodeVariable from '../variable/nodeVariable'
+function Node({ setNodes, id, nodes }) {
   const [input, setInput] = useState("");
   const [copy, setCopy] = useState(false);
   const [editStatus, setEditStatus] = useState(true);
-  const [collapse, setCollapse] = useState("block");
+  const [collapse, setCollapse] = useState("hidden");
 
   const myElementRef = useRef(null);
-  useEffect(() => {
+
+  const setConnectors = () => {
     if (!myElementRef.current) return;
     const rect = myElementRef.current.getBoundingClientRect();
-    const mediumTop = {
+    const midpointTop = {
       x: rect.left + window.scrollX + rect.width / 2,
       y: rect.top + window.scrollY,
     };
-    const mediumRight = {
+    const midpointRight = {
       x: rect.left + window.scrollX + rect.width,
       y: rect.top + window.scrollY + rect.height / 2,
     };
-    const mediumBottom = {
+    const midpointBottom = {
       x: rect.left + window.scrollX + rect.width / 2,
       y: rect.top + window.scrollY + rect.height,
     };
-    const mediumLeft = {
+    const midpointLeft = {
       x: rect.left + window.scrollX,
       y: rect.top + window.scrollY + rect.height / 2,
     };
+    console.log(rect);
 
     setNodes((prevNodes) => {
       return produce(prevNodes, (nodes) => {
         nodes.forEach((node, index) => {
           if (index === id) {
             node.id = id;
-            node.mediumTop = mediumTop;
-            node.mediumRight = mediumRight;
-            node.mediumBottom = mediumBottom;
-            node.mediumLeft = mediumLeft;
+            node.connectors.top = midpointTop;
+            node.connectors.right = midpointRight;
+            node.connectors.bottom = midpointBottom;
+            node.connectors.left = midpointLeft;
           }
         });
       });
     });
-  }, []);
+  }
+
+  useEffect(() => {
+    setConnectors()
+  },[collapse]);
+
+  const defaultNode = {
+    id: null,
+    width: nodeVariable.MIN_WIDTH,
+    connectors: {
+      top: null,
+      right: null,
+      bottom: null,
+      left: null,
+    }
+  };
+
+  const addNode = () => {
+    setNodes([...nodes, defaultNode]);
+    if (nodes.length < 1) return;
+    setLines([...lines, defaultLine]);
+  };
+
   return (
     <div
       ref={myElementRef}
@@ -53,28 +78,43 @@ function Node({ setNodes, id }) {
       <div className="bg-gray-100 p-2">
         <button
           className="bg-gray-600 text-white p-2 rounded-md mr-2"
+          onClick={addNode}
+        >
+          新增
+        </button>
+        <button
+          className="bg-gray-600 text-white p-2 rounded-md mr-2"
           onClick={() => setEditStatus(editStatus ? false : true)}
         >
           眼睛
         </button>
         <button
           className="bg-gray-600 text-white p-2 rounded-md"
-          onClick={() => setCollapse(collapse === "block" ? "hidden" : "block")}
+          onClick={() => {
+            setCollapse(collapse === "block" ? "hidden" : "block")
+          }}
         >
           收合
         </button>
+        <input type="text" autoFocus className="p-2 mx-2" />
       </div>
       {editStatus ? (
         <textarea
           autoFocus
-          className={`w-[200px] h-[300px] text-lg p-5 focus:outline-none  ${collapse} `}
+          className={`w-full h-[300px] text-lg p-5 focus:outline-none  ${collapse} `}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value)
+            setNodes(nodes => nodes.map((node, index) => { 
+              if (index !== id) return node
+              return {...node, width: e.target.parentElement.offsetWidth < nodeVariable.MIN_WIDTH ? nodeVariable.MIN_WIDTH : e.target.parentElement.offsetWidth }
+            }))
+          }}
           style={{ resize: "none" }}
         ></textarea>
       ) : (
         <Markdown
-          className={`w-[200px] h-[300px] text-lg overflow-auto p-5  ${collapse}`}
+          className={`w-full h-[300px] text-lg overflow-auto p-5  ${collapse}`}
           children={input}
           components={{
             code(props) {
