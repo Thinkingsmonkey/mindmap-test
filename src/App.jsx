@@ -1,27 +1,33 @@
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
 import Node from "./components/Node";
-import * as lineVariable from './variable/lineVariable'
-import * as nodeVariable from './variable/nodeVariable'
+import * as lineVariable from "./variable/lineVariable";
+import * as nodeVariable from "./variable/nodeVariable";
+import { produce } from "immer";
+import _ from "lodash";
 
 function App() {
   const parentRef = useRef(null);
-  let parentRect = null
+  let parentRect = null;
   if (parentRef.current !== null) {
     parentRect = parentRef.current.getBoundingClientRect();
   }
 
   const defaultNode = {
-    id: null,
+    id: 0,
     width: nodeVariable.MIN_WIDTH,
+    height: nodeVariable.MIN_HEIGHT,
     parent: null,
-    children:[],
+    children: [],
+    top: "50%",
+    left: 0,
+    display: "none",
     connectors: {
       top: null,
       right: null,
       bottom: null,
       left: null,
-    }
+    },
   };
   const defaultLine = { from: null, to: null };
 
@@ -29,20 +35,19 @@ function App() {
   const [lines, setLines] = useState([]);
 
   const addNode = () => {
-    setNodes([...nodes, defaultNode]);
+    setNodes([...nodes, {...defaultNode, id: nodes.length}]);
     if (nodes.length < 1) return;
     setLines([...lines, defaultLine]);
   };
-  console.log(nodes);
-  // console.log(lines);
 
   useEffect(() => {
     setLines(() =>
       nodes
         .map((node, index) => {
           if (index < 1) return null;
+          const parentId = node.parent;
           return {
-            from: nodes[index - 1],
+            from: nodes[parentId],
             to: node,
           };
         })
@@ -59,22 +64,22 @@ function App() {
         !line.to.connectors.left
       )
         return null;
-      
-      const startPoint = line.from.connectors.right
-      const endPoint = line.to.connectors.left
+
+      const startPoint = line.from.connectors.right;
+      const endPoint = line.to.connectors.left;
 
       // path
       const startX = startPoint.x;
       const startY = startPoint.y;
       const endX = endPoint.x;
       const endY = endPoint.y;
-      
+
       // viewbox
       const minX = Math.min(startX, endX);
       const minY = Math.min(startY, endY);
       const width = lineVariable.LINE_WIDTH;
       const height = Math.abs(endY - startY);
-      
+
       // 控制點
       const controllStartX = startX + width * 0.5;
       const controllStartY = startY;
@@ -84,51 +89,146 @@ function App() {
       return (
         <svg
           className="absolute"
-          style={{ transform: `translate(${minX - parentRect.x - window.scrollX}px, ${minY-5 - parentRect.y - window.scrollY}px)` }}
-          viewBox={`${minX} ${minY-5} ${width} ${height + 10}`}
+          style={{
+            transform: `translate(${minX - parentRect.x - window.scrollX}px, ${
+              minY - 5 - parentRect.y - window.scrollY
+            }px)`,
+          }}
+          viewBox={`${minX} ${minY - 5} ${width} ${height + 10}`}
           width={width}
           height={height + 10}
           key={index}
         >
           <path
-            
-            d={startY - endY < 0 ? 
-              `M ${minX + 8} ${minY} C ${controllStartX} ${
-                controllStartY
-              }, ${controllEndX} ${controllEndY}, ${startX +108} ${minY + height}` 
-            :
-              `M ${minX + 8} ${minY + height} C ${controllStartX} ${
-              controllStartY
-            }, ${controllEndX} ${controllEndY}, ${startX +108} ${minY}`}
+            d={
+              startY - endY < 0
+                ? `M ${
+                    minX + 8
+                  } ${minY} C ${controllStartX} ${controllStartY}, ${controllEndX} ${controllEndY}, ${
+                    startX + 108
+                  } ${minY + height}`
+                : `M ${minX + 8} ${
+                    minY + height
+                  } C ${controllStartX} ${controllStartY}, ${controllEndX} ${controllEndY}, ${
+                    startX + 108
+                  } ${minY}`
+            }
             stroke="red"
             strokeWidth="4"
             fill="none"
           />
         </svg>
       );
-    })
-  }
+    });
+  };
+
+  // console.log(nodes);
+  // console.log(lines);
+
+  // top
+  const getChildrenHeight = (node, verticalSpacing, targetId = 0) => {
+    let childrenHeight = 0;
+    let stopId = node.id;
+    if (node.children.length !== 0) {
+      const childrenNodeHeight = node.children
+        .map((id) => getChildrenHeight(nodes[id], verticalSpacing))
+        .reduce((cv, height) => cv + height, 0);
+      childrenHeight =
+        childrenNodeHeight + (node.children.length - 1) * verticalSpacing;
+    } else {
+      childrenHeight = node.height;
+    }
+    if (node.height > childrenHeight) {
+      if (stopId === targetId) {
+        return childrenHeight;
+      }
+      return node.height;
+    }
+    return childrenHeight;
+  };
+
+
+
+  const calculateNodePosition = (node, nodes) => {
+    let top = 0;
+    let left = 0;
+    const verticalSpacing = nodeVariable.VERTICAL_SPACING; 
+    const horizontalSpacing = nodeVariable.HORIZONTAL_SPACING; 
+
+    const childrenHeight = getChildrenHeight(node, verticalSpacing, node.id);
+
+    // 判斷目標 node 的 node.height > childrenHeight 得 childrenHeight
+    if (node.height > childrenHeight) {
+      top = node.height
+    } else {
+      top = childrenHeight
+    }
+
+    // left
+    if (node.parent !== null) {
+      const parentNode = nodes[node.parent];
+      const parentPosition = calculateNodePosition(parentNode, nodes);
+      left = parentPosition.left + parentNode.width + horizontalSpacing;
+    } else {
+      return { top, left: node.left };
+    }
+
+    
+    return { top, left };
+  };
+
+  useEffect(() => {
+    const updatedNodes = nodes.map((node) => {
+      const { top, left } = calculateNodePosition(node, nodes);
+      const newNode = { ...node, top, left, display: "block"};
+      return newNode;
+    });
+
+    // const updatedNodes  = produce(nodes, newNodes => {
+    // updatedNodes.forEach(node => {
+    //   const {top, left }= calculateNodePosition(node, newNodes);
+    //   node.top = top;
+    //   node.left = left;
+    //   console.log(node.top, node.left);
+    // })
+
+    // })
+    if (!_.isEqual(nodes, updatedNodes)) {
+      setNodes(updatedNodes);
+    }
+  }, [nodes]);
 
   return (
     <>
-      <div className="w-full absolute top-20" ref={parentRef} >
-          <button className="absolute top-14 z-10" onClick={addNode}>添加</button>
-          {nodes.map((node, index) => (
+      <div className="w-full absolute top-1/2" ref={parentRef}>
+        <button className="absolute top-14 z-10" onClick={addNode}>
+          添加
+        </button>
+        {nodes.map((node, index) => {
+          return (
             <div
               key={index}
               style={{
-                left: `${index * (node.width + lineVariable.LINE_WIDTH)}px`,
-                top: `${index * 450}px`,
-                // width: `${node.width}px`,
+                position: "absolute",
+                display: node.display,
+                top: `${node.top}px`,
+                left: `${node.left}px`,
+                height: `${nodeVariable.MIN_HEIGHT}px`,
                 minWidth: `${defaultNode.width}px`,
-                maxWidth: `${nodeVariable.MAX_WIDTH}`,
+                maxWidth: `${nodeVariable.MAX_WIDTH}px`,
               }}
-              className={`absolute `}
             >
-              <Node setNodes={setNodes} id={index} nodes={nodes} setLines={setLines} />
+              <Node
+                setNodes={setNodes}
+                id={index}
+                nodes={nodes}
+                setLines={setLines}
+                defaultNode={defaultNode}
+              />
             </div>
-          ))}
-          {createLevelLine()}
+          );
+        })}
+        {createLevelLine()}
       </div>
     </>
   );

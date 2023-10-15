@@ -4,7 +4,7 @@ import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import * as nodeVariable from '../variable/nodeVariable'
-function Node({ setNodes, id, nodes }) {
+function Node({ setNodes, id, nodes, defaultNode }) {
   const [input, setInput] = useState("");
   const [copy, setCopy] = useState(false);
   const [editStatus, setEditStatus] = useState(true);
@@ -31,7 +31,6 @@ function Node({ setNodes, id, nodes }) {
       x: rect.left + window.scrollX,
       y: rect.top + window.scrollY + rect.height / 2,
     };
-    console.log(rect);
 
     setNodes((prevNodes) => {
       return produce(prevNodes, (nodes) => {
@@ -52,21 +51,20 @@ function Node({ setNodes, id, nodes }) {
     setConnectors()
   },[collapse]);
 
-  const defaultNode = {
-    id: null,
-    width: nodeVariable.MIN_WIDTH,
-    connectors: {
-      top: null,
-      right: null,
-      bottom: null,
-      left: null,
-    }
-  };
-
   const addNode = () => {
-    setNodes([...nodes, defaultNode]);
-    if (nodes.length < 1) return;
-    setLines([...lines, defaultLine]);
+    const newNode = {...defaultNode, parent: id, id: nodes.length};
+    setNodes(prev => {
+      const newNodes = prev.map((node, index) => {
+        if (index === id) {
+          return {
+            ...node,
+            children: [...node.children, prev.length]
+          };
+        }
+        return node;
+      });
+      return [...newNodes, newNode];
+    });
   };
 
   return (
