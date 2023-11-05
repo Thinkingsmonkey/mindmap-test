@@ -30,7 +30,6 @@ export const nodeSlice = createSlice({
     addChildNode: (state, action) => {
       const parentId = action.payload.parentId;
       const newNode = {...defaultNode, parent: parentId, id: state.length};
-      console.log(parentId);
       const parent = state.find(node => node.id === parentId);
       if (parent) {
         parent.children.push(state.length);
@@ -39,9 +38,11 @@ export const nodeSlice = createSlice({
       state.push(newNode);
     },
     setNodeConnectors: (state, action) => {
-      const rect = action.rect
-      const id = action.id
-      const node = state.find(node => node.id = id)
+      
+      const rect = action.payload.serializableRect
+      const id = action.payload.id
+      const node = state.find(node => node.id === id)
+
       const midpointTop = {
         x: rect.left + window.scrollX + rect.width / 2,
         y: rect.top + window.scrollY,
@@ -59,20 +60,18 @@ export const nodeSlice = createSlice({
         y: rect.top + window.scrollY + rect.height / 2,
       };
 
-      // state.forEach((node, index) => {
-      //   if (index === id) {
-      //     node.id = id;
-          node.connectors.top = midpointTop;
-          node.connectors.right = midpointRight;
-          node.connectors.bottom = midpointBottom;
-          node.connectors.left = midpointLeft;
-      //   }
-      // });
-
-    }
+      node.connectors.top = midpointTop;
+      node.connectors.right = midpointRight;
+      node.connectors.bottom = midpointBottom;
+      node.connectors.left = midpointLeft;
+    },
+    updateNodes: (state, action) => {
+      return action.payload
+    },
+    
   }
 })
 
-export const { addCenterNode,  addChildNode, setNodeConnectors} = nodeSlice.actions;
+export const { addCenterNode,  addChildNode, setNodeConnectors, updateNodes} = nodeSlice.actions;
 
 export default nodeSlice.reducer;

@@ -39,20 +39,31 @@ function Node({ id }) {
     //   x: rect.left + window.scrollX,
     //   y: rect.top + window.scrollY + rect.height / 2,
     // };
-    dispatch(setNodeConnectors({rect, id}))
-    setNodes((prevNodes) => {
-      return produce(prevNodes, (nodes) => {
-        nodes.forEach((node, index) => {
-          if (index === id) {
-            node.id = id;
-            node.connectors.top = midpointTop;
-            node.connectors.right = midpointRight;
-            node.connectors.bottom = midpointBottom;
-            node.connectors.left = midpointLeft;
-          }
-        });
-      });
-    });
+    const serializableRect = {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      left: rect.left
+    };
+
+    dispatch(setNodeConnectors({serializableRect, id}))
+    // setNodes((prevNodes) => {
+    //   return produce(prevNodes, (nodes) => {
+    //     nodes.forEach((node, index) => {
+    //       if (index === id) {
+    //         node.id = id;
+    //         node.connectors.top = midpointTop;
+    //         node.connectors.right = midpointRight;
+    //         node.connectors.bottom = midpointBottom;
+    //         node.connectors.left = midpointLeft;
+    //       }
+    //     });
+    //   });
+    // });
   }
 
   useEffect(() => {
@@ -61,19 +72,19 @@ function Node({ id }) {
   
   const addChild = () => {
     dispatch(addChildNode({parentId: id}))
-    const newNode = {...defaultNode, parent: id, id: nodes.length};
-    setNodes(prev => {
-      const newNodes = prev.map((node, index) => {
-        if (index === id) {
-          return {
-            ...node,
-            children: [...node.children, prev.length]
-          };
-        }
-        return node;
-      });
-      return [...newNodes, newNode];
-    });
+    // const newNode = {...defaultNode, parent: id, id: nodes.length};
+    // setNodes(prev => {
+    //   const newNodes = prev.map((node, index) => {
+    //     if (index === id) {
+    //       return {
+    //         ...node,
+    //         children: [...node.children, prev.length]
+    //       };
+    //     }
+    //     return node;
+    //   });
+    //   return [...newNodes, newNode];
+    // });
   };
 
   return (
@@ -99,6 +110,7 @@ function Node({ id }) {
           className="bg-gray-600 text-white p-2 rounded-md"
           onClick={() => {
             setCollapse(collapse === "block" ? "hidden" : "block")
+            
           }}
         >
           收合
@@ -112,10 +124,10 @@ function Node({ id }) {
           value={input}
           onChange={(e) => {
             setInput(e.target.value)
-            setNodes(nodes => nodes.map((node, index) => { 
-              if (index !== id) return node
-              return {...node, width: e.target.parentElement.offsetWidth < nodeVariable.MIN_WIDTH ? nodeVariable.MIN_WIDTH : e.target.parentElement.offsetWidth }
-            }))
+            // setNodes(nodes => nodes.map((node, index) => { 
+            //   if (index !== id) return node
+            //   return {...node, width: e.target.parentElement.offsetWidth < nodeVariable.MIN_WIDTH ? nodeVariable.MIN_WIDTH : e.target.parentElement.offsetWidth }
+            // }))
           }}
           style={{ resize: "none" }}
         ></textarea>
@@ -129,7 +141,7 @@ function Node({ id }) {
               const content = String(children).replace(/\n$/, "");
               const match = /language-(\w+)/.exec(className || "");
               return match ? (
-                <div className="h-[500px]">
+                <div>
                   <div className="flex justify-between px-5 text-white text-xs items-center bg-[#2d2d2d] rounded-t-md overflow-hidden">
                     <p className="text-sm">Example code</p>
                     {copy ? (

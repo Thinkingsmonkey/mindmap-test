@@ -5,9 +5,8 @@ import * as lineVariable from "./variable/lineVariable";
 import * as nodeVariable from "./variable/nodeVariable";
 import { produce } from "immer";
 import _ from "lodash";
-import NodeTest from "./features/node/NodeTest";
 import { useSelector, useDispatch } from "react-redux";
-import { addCenterNode } from "./features/node/nodeSlice";
+import { addCenterNode, updateNodes } from "./features/node/nodeSlice";
 
 function App() {
   const nodes = useSelector(state => state.nodes)
@@ -144,7 +143,7 @@ function App() {
 
     if (node.children.length !== 0) {
       nextTopForChild = node.children.reduce((accTop, id) => {
-        console.log("accTop", accTop);
+        // console.log("accTop", accTop);
         const nextSiblingTop = setNodeTop(draftNodes, id, accTop);
         return nextSiblingTop; // 設定下一個兄弟節點的top值
       }, currentTop);
@@ -191,7 +190,6 @@ function App() {
 
   useEffect(() => {
     if (nodes.length === 0) return;
-
     const updatedNodes = produce(nodes, (newNodes) => {
       return newNodes.map((node) => {
         const left = setNodeLeft(node, nodes);
@@ -202,15 +200,15 @@ function App() {
     const initialTopValue = - getChildrenHeight(updatedNodes[0]) / 2;
     const newNodes = produce(updatedNodes, (draftNodes) => {
       setNodeTop(draftNodes, 0, initialTopValue);
-    });3
+    });
     if (!_.isEqual(nodes, newNodes)) {
-      setNodes(newNodes);
+      dispatch(updateNodes(newNodes))
+      // setNodes(newNodes);
     }
   }, [nodes]);
 
   return (
     <>
-      <NodeTest />
       <div className="w-full absolute top-1/2" ref={parentRef}>
         <button className="absolute top-14 z-10" onClick={addNode}>
           添加
@@ -221,7 +219,7 @@ function App() {
               key={index}
               style={{
                 position: "absolute",
-                display: node.display,
+                // display: node.display,
                 top: `${node.top}px`,
                 left: `${node.left}px`,
                 height: `${nodeVariable.MIN_HEIGHT}px`,
