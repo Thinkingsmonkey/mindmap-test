@@ -4,7 +4,15 @@ import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import * as nodeVariable from '../variable/nodeVariable'
-function Node({ setNodes, id, nodes, defaultNode }) {
+
+import { useSelector, useDispatch } from "react-redux";
+import { addChildNode, setNodeConnectors } from "../features/node/nodeSlice";
+
+
+function Node({ id }) {
+  const dispatch = useDispatch()
+  const nodeTest = useSelector(state => state.nodes)
+
   const [input, setInput] = useState("");
   const [copy, setCopy] = useState(false);
   const [editStatus, setEditStatus] = useState(true);
@@ -15,23 +23,23 @@ function Node({ setNodes, id, nodes, defaultNode }) {
   const setConnectors = () => {
     if (!myElementRef.current) return;
     const rect = myElementRef.current.getBoundingClientRect();
-    const midpointTop = {
-      x: rect.left + window.scrollX + rect.width / 2,
-      y: rect.top + window.scrollY,
-    };
-    const midpointRight = {
-      x: rect.left + window.scrollX + rect.width,
-      y: rect.top + window.scrollY + rect.height / 2,
-    };
-    const midpointBottom = {
-      x: rect.left + window.scrollX + rect.width / 2,
-      y: rect.top + window.scrollY + rect.height,
-    };
-    const midpointLeft = {
-      x: rect.left + window.scrollX,
-      y: rect.top + window.scrollY + rect.height / 2,
-    };
-
+    // const midpointTop = {
+    //   x: rect.left + window.scrollX + rect.width / 2,
+    //   y: rect.top + window.scrollY,
+    // };
+    // const midpointRight = {
+    //   x: rect.left + window.scrollX + rect.width,
+    //   y: rect.top + window.scrollY + rect.height / 2,
+    // };
+    // const midpointBottom = {
+    //   x: rect.left + window.scrollX + rect.width / 2,
+    //   y: rect.top + window.scrollY + rect.height,
+    // };
+    // const midpointLeft = {
+    //   x: rect.left + window.scrollX,
+    //   y: rect.top + window.scrollY + rect.height / 2,
+    // };
+    dispatch(setNodeConnectors({rect, id}))
     setNodes((prevNodes) => {
       return produce(prevNodes, (nodes) => {
         nodes.forEach((node, index) => {
@@ -50,8 +58,9 @@ function Node({ setNodes, id, nodes, defaultNode }) {
   useEffect(() => {
     setConnectors()
   },[collapse]);
-
-  const addNode = () => {
+  
+  const addChild = () => {
+    dispatch(addChildNode({parentId: id}))
     const newNode = {...defaultNode, parent: id, id: nodes.length};
     setNodes(prev => {
       const newNodes = prev.map((node, index) => {
@@ -76,7 +85,7 @@ function Node({ setNodes, id, nodes, defaultNode }) {
       <div className="bg-gray-100 p-2">
         <button
           className="bg-gray-600 text-white p-2 rounded-md mr-2"
-          onClick={addNode}
+          onClick={addChild}
         >
           新增
         </button>

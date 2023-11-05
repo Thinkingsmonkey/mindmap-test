@@ -5,38 +5,47 @@ import * as lineVariable from "./variable/lineVariable";
 import * as nodeVariable from "./variable/nodeVariable";
 import { produce } from "immer";
 import _ from "lodash";
+import NodeTest from "./features/node/NodeTest";
+import { useSelector, useDispatch } from "react-redux";
+import { addCenterNode } from "./features/node/nodeSlice";
 
 function App() {
+  const nodes = useSelector(state => state.nodes)
+  const dispatch = useDispatch()
+  const horizontalSpacing = nodeVariable.HORIZONTAL_SPACING;
+  const verticalSpacing = nodeVariable.VERTICAL_SPACING;
+
   const parentRef = useRef(null);
   let parentRect = null;
   if (parentRef.current !== null) {
     parentRect = parentRef.current.getBoundingClientRect();
   }
 
-  const defaultNode = {
-    id: 0,
-    width: nodeVariable.MIN_WIDTH,
-    height: nodeVariable.MIN_HEIGHT,
-    parent: null,
-    children: [],
-    top: "50%",
-    left: 0,
-    display: "none",
-    connectors: {
-      top: null,
-      right: null,
-      bottom: null,
-      left: null,
-    },
-  };
+  // const defaultNode = {
+  //   id: 0,
+  //   width: nodeVariable.MIN_WIDTH,
+  //   height: nodeVariable.MIN_HEIGHT,
+  //   parent: null,
+  //   children: [],
+  //   top: "50%",
+  //   left: 0,
+  //   display: "none",
+  //   connectors: {
+  //     top: null,
+  //     right: null,
+  //     bottom: null,
+  //     left: null,
+  //   },
+  // };
   const defaultLine = { from: null, to: null };
 
-  const [nodes, setNodes] = useState([]);
+  // const [nodes, setNodes] = useState([]);
   const [lines, setLines] = useState([]);
 
   const addNode = () => {
-    setNodes([...nodes, {...defaultNode, id: nodes.length}]);
-    if (nodes.length < 1) return;
+    dispatch(addCenterNode())
+    // setNodes([...nodes, { ...defaultNode, id: nodes.length }]);
+    // if (nodes.length < 1) return;
     setLines([...lines, defaultLine]);
   };
 
@@ -126,12 +135,31 @@ function App() {
   // console.log(lines);
 
   // top
-  const getChildrenHeight = (node, verticalSpacing, targetId = 0) => {
+  const setNodeTop = (draftNodes, nodeId, currentTop) => {
+    const node = draftNodes[nodeId];
+    const childrenHeight = getChildrenHeight(node);
+    node.top = currentTop + childrenHeight / 2 - node.height / 2;
+    
+    let nextTopForChild = currentTop; // 用於子節點的初始位置
+
+    if (node.children.length !== 0) {
+      nextTopForChild = node.children.reduce((accTop, id) => {
+        console.log("accTop", accTop);
+        const nextSiblingTop = setNodeTop(draftNodes, id, accTop);
+        return nextSiblingTop; // 設定下一個兄弟節點的top值
+      }, currentTop);
+    }
+
+    const nextSiblingTop = currentTop + childrenHeight + verticalSpacing;
+    return nextSiblingTop;
+  };
+
+  const getChildrenHeight = (node, targetId = 0) => {
     let childrenHeight = 0;
     let stopId = node.id;
     if (node.children.length !== 0) {
       const childrenNodeHeight = node.children
-        .map((id) => getChildrenHeight(nodes[id], verticalSpacing))
+        .map((id) => getChildrenHeight(nodes[id]))
         .reduce((cv, height) => cv + height, 0);
       childrenHeight =
         childrenNodeHeight + (node.children.length - 1) * verticalSpacing;
@@ -147,59 +175,42 @@ function App() {
     return childrenHeight;
   };
 
-
-
-  const calculateNodePosition = (node, nodes) => {
-    let top = 0;
+  const setNodeLeft = (node, nodes) => {
     let left = 0;
-    const verticalSpacing = nodeVariable.VERTICAL_SPACING; 
-    const horizontalSpacing = nodeVariable.HORIZONTAL_SPACING; 
-
-    const childrenHeight = getChildrenHeight(node, verticalSpacing, node.id);
-
-    // 判斷目標 node 的 node.height > childrenHeight 得 childrenHeight
-    if (node.height > childrenHeight) {
-      top = node.height
-    } else {
-      top = childrenHeight
-    }
 
     // left
     if (node.parent !== null) {
       const parentNode = nodes[node.parent];
-      const parentPosition = calculateNodePosition(parentNode, nodes);
-      left = parentPosition.left + parentNode.width + horizontalSpacing;
+      setNodeLeft(parentNode, nodes);
+      left = parentNode.left + parentNode.width + horizontalSpacing;
     } else {
-      return { top, left: node.left };
+      left = node.left;
     }
-
-    
-    return { top, left };
+    return left;
   };
 
   useEffect(() => {
-    const updatedNodes = nodes.map((node) => {
-      const { top, left } = calculateNodePosition(node, nodes);
-      const newNode = { ...node, top, left, display: "block"};
-      return newNode;
+    if (nodes.length === 0) return;
+
+    const updatedNodes = produce(nodes, (newNodes) => {
+      return newNodes.map((node) => {
+        const left = setNodeLeft(node, nodes);
+        return { ...node, left, display: "block" };
+      });
     });
 
-    // const updatedNodes  = produce(nodes, newNodes => {
-    // updatedNodes.forEach(node => {
-    //   const {top, left }= calculateNodePosition(node, newNodes);
-    //   node.top = top;
-    //   node.left = left;
-    //   console.log(node.top, node.left);
-    // })
-
-    // })
-    if (!_.isEqual(nodes, updatedNodes)) {
-      setNodes(updatedNodes);
+    const initialTopValue = - getChildrenHeight(updatedNodes[0]) / 2;
+    const newNodes = produce(updatedNodes, (draftNodes) => {
+      setNodeTop(draftNodes, 0, initialTopValue);
+    });3
+    if (!_.isEqual(nodes, newNodes)) {
+      setNodes(newNodes);
     }
   }, [nodes]);
 
   return (
     <>
+      <NodeTest />
       <div className="w-full absolute top-1/2" ref={parentRef}>
         <button className="absolute top-14 z-10" onClick={addNode}>
           添加
@@ -214,16 +225,15 @@ function App() {
                 top: `${node.top}px`,
                 left: `${node.left}px`,
                 height: `${nodeVariable.MIN_HEIGHT}px`,
-                minWidth: `${defaultNode.width}px`,
+                minWidth: `${nodeVariable.MIN_WIDTH}px`,
                 maxWidth: `${nodeVariable.MAX_WIDTH}px`,
               }}
             >
               <Node
-                setNodes={setNodes}
+                // setNodes={setNodes}
                 id={index}
-                nodes={nodes}
                 setLines={setLines}
-                defaultNode={defaultNode}
+                // defaultNode={defaultNode}
               />
             </div>
           );
